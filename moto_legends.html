@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>أساطير الدراجات - Moto Legends</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+  body { overflow: hidden; background: #000; font-family: 'Arial', sans-serif; touch-action: none; }
+  canvas { display: block; }
+  
+  #loading {
+    position: fixed; inset: 0; background: linear-gradient(135deg, #1a0f0a, #3d2817);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #d4a373; z-index: 1000; transition: opacity 1s;
+  }
+  #loading h1 { font-size: 3em; margin-bottom: 20px; text-shadow: 0 0 20px #d4a373; }
+  #loading .bar { width: 300px; height: 8px; background: #2a1810; border-radius: 4px; overflow: hidden; }
+  #loading .fill { height: 100%; background: linear-gradient(90deg, #d4a373, #ffcc99); width: 0%; transition: width 0.3s; }
+  
+  #menu {
+    position: fixed; inset: 0; background: linear-gradient(135deg, rgba(26,15,10,0.95), rgba(61,40,23,0.95));
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff; z-index: 100; padding: 20px;
+  }
+  #menu h1 { font-size: 2.5em; color: #d4a373; margin-bottom: 10px; text-shadow: 0 0 20px #d4a373; }
+  #menu h2 { font-size: 1.2em; color: #ffcc99; margin-bottom: 30px; }
+  .menu-btn {
+    background: linear-gradient(135deg, #8b5a2b, #d4a373); color: #fff; border: none;
+    padding: 15px 40px; font-size: 1.2em; margin: 8px; border-radius: 30px; cursor: pointer;
+    min-width: 250px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.2s;
+    font-weight: bold;
+  }
+  .menu-btn:hover, .menu-btn:active { transform: scale(1.05); }
+  .env-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-width: 500px; margin: 20px; }
+  .env-btn {
+    background: rgba(139,90,43,0.6); color: #fff; border: 2px solid transparent;
+    padding: 15px; border-radius: 10px; cursor: pointer; font-size: 1em;
+    transition: all 0.3s;
+  }
+  .env-btn.selected { border-color: #d4a373; background: rgba(212,163,115,0.3); }
+  
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; padding: 15px;
+    display: none; justify-content: space-between; pointer-events: none; z-index: 10;
+  }
+  .hud-panel {
+    background: rgba(0,0,0,0.5); padding: 10px 15px; border-radius: 10px;
+    color: #fff; font-size: 14px; backdrop-filter: blur(10px);
+    border: 1px solid rgba(212,163,115,0.3);
+  }
+  .hud-panel .label { color: #d4a373; font-size: 11px; }
+  .hud-panel .value { font-size: 20px; font-weight: bold; }
+  
+  #nitroBar {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 12px; background: rgba(0,0,0,0.5); border-radius: 6px;
+    overflow: hidden; display: none; z-index: 10; border: 1px solid rgba(212,163,115,0.3);
+  }
+  #nitroFill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ffcc); width: 100%; transition: width 0.2s; }
+  
+  #mobileControls {
+    position: fixed; inset: 0; display: none; z-index: 5; pointer-events: none;
+  }
+  .touch-btn {
+    position: absolute; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 24px; pointer-events: auto; backdrop-filter: blur(5px);
+    transition: background 0.2s;
+  }
+  .touch-btn.active { background: rgba(212,163,115,0.5); }
+  #btnLeft { left: 20px; bottom: 30px; width: 80px; height: 80px; }
+  #btnRight { left: 120px; bottom: 30px; width: 80px; height: 80px; }
+  #btnGas { right: 20px; bottom: 110px; width: 90px; height: 90px; background: rgba(76,175,80,0.3); }
+  #btnBrake { right: 120px; bottom: 30px; width: 80px; height: 80px; background: rgba(244,67,54,0.3); }
+  #btnNitro { right: 20px; bottom: 20px; width: 80px; height: 80px; background: rgba(0,212,255,0.3); }
+  #btnCamera { top: 20px; right: 20px; width: 50px; height: 50px; font-size: 18px; }
+  #btnPause { top: 20px; left: 20px; width: 50px; height: 50px; font-size: 18px; }
+  
+  #pauseMenu {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none;
+    flex-direction: column; align-items: center; justify-content: center; z-index: 200;
+  }
+  
+  #minimap {
+    position: fixed; bottom: 20px; right: 20px; width: 150px; height: 150px;
+    background: rgba(0,0,0,0.5); border-radius: 50%; border: 2px solid #d4a373;
+    display: none; z-index: 10; overflow: hidden;
+  }
+  
+  #speedometer {
+    position: fixed; bottom: 20px; left: 20px; width: 120px; height: 120px;
+    background: rgba(0,0,0,0.6); border-radius: 50%; border: 3px solid #d4a373;
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    color: #fff; z-index: 10;
+  }
+  #speedometer .speed-val { font-size: 28px; font-weight: bold; color: #ffcc99; }
+  #speedometer .speed-unit { font-size: 10px; color: #d4a373; }
+  
+  #notification {
+    position: fixed; top: 100px; left: 50%; transform: translateX(-50%);
+    background: rgba(212,163,115,0.9); color: #fff; padding: 15px 30px;
+    border-radius: 10px; font-size: 18px; font-weight: bold; z-index: 50;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>🏍️ أساطير الدراجات</h1>
+  <p style="margin-bottom:20px; color:#ffcc99;">Moto Legends: Echoes of History</p>
+  <div class="bar"><div class="fill" id="loadFill"></div></div>
+  <p style="margin-top:15px; font-size:14px;" id="loadText">جاري التحميل...</p>
+</div>
+
+<div id="menu">
+  <h1>🏍️ أساطير الدراجات</h1>
+  <h2>اختر البيئة التاريخية</h2>
+  <div class="env-grid">
+    <div class="env-btn selected" data-env="pyramids">🔺 أهرامات الجيزة</div>
+    <div class="env-btn" data-env="luxor">🏛️ معابد الأقصر</div>
+    <div class="env-btn" data-env="colosseum">⚔️ الكولوسيوم الروماني</div>
+    <div class="env-btn" data-env="wall">🐉 سور الصين العظيم</div>
+  </div>
+  <button class="menu-btn" id="startRace">🏁 ابدأ السباق</button>
+  <button class="menu-btn" id="freeRide">🌍 القيادة الحرة</button>
+</div>
+
+<div id="hud">
+  <div class="hud-panel">
+    <div class="label">المركز</div>
+    <div class="value" id="position">1/4</div>
+  </div>
+  <div class="hud-panel" style="text-align:center;">
+    <div class="label">اللفة</div>
+    <div class="value" id="lap">1/3</div>
+  </div>
+  <div class="hud-panel" style="text-align:right;">
+    <div class="label">الوقت</div>
+    <div class="value" id="time">00:00</div>
+  </div>
+</div>
+
+<div id="nitroBar"><div id="nitroFill"></div></div>
+
+<div id="speedometer">
+  <div class="speed-val" id="speedVal">0</div>
+  <div class="speed-unit">كم/س</div>
+</div>
+
+<div id="minimap"></div>
+
+<div id="mobileControls">
+  <div class="touch-btn" id="btnLeft">◀</div>
+  <div class="touch-btn" id="btnRight">▶</div>
+  <div class="touch-btn" id="btnGas">▲</div>
+  <div class="touch-btn" id="btnBrake">▼</div>
+  <div class="touch-btn" id="btnNitro">⚡</div>
+  <div class="touch-btn" id="btnCamera">📷</div>
+  <div class="touch-btn" id="btnPause">⏸</div>
+</div>
+
+<div id="pauseMenu">
+  <h1 style="color:#d4a373; margin-bottom:30px;">⏸ إيقاف مؤقت</h1>
+  <button class="menu-btn" id="resumeBtn">▶ متابعة</button>
+  <button class="menu-btn" id="restartBtn">🔄 إعادة</button>
+  <button class="menu-btn" id="menuBtn">🏠 القائمة الرئيسية</button>
+</div>
+
+<div id="notification"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// ==================== نظام اللعبة الرئيسي ====================
+const Game = {
+  scene: null, camera: null, renderer: null, clock: null,
+  player: null, aiRacers: [], environment: null,
+  state: 'loading', // loading, menu, playing, paused
+  selectedEnv: 'pyramids',
+  gameMode: 'race', // race, free
+  currentLap: 1, totalLaps: 3,
+  raceTime: 0,
+  keys: {}, touch: { left:false, right:false, gas:false, brake:false, nitro:false },
+  cameraMode: 'third', // third, first
+  isMobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+};
+
+// ==================== إعداد المشهد ====================
+function initScene() {
+  Game.scene = new THREE.Scene();
+  Game.scene.fog = new THREE.Fog(0xd4a373, 100, 800);
+  
+  Game.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
+  Game.camera.position.set(0, 5, -10);
+  
+  Game.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  Game.renderer.setSize(window.innerWidth, window.innerHeight);
+  Game.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  Game.renderer.shadowMap.enabled = true;
+  Game.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  Game.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  Game.renderer.toneMappingExposure = 1.2;
+  document.body.appendChild(Game.renderer.domElement);
+  
+  Game.clock = new THREE.Clock();
+  
+  window.addEventListener('resize', () => {
+    Game.camera.aspect = window.innerWidth/window.innerHeight;
+    Game.camera.updateProjectionMatrix();
+    Game.renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+// ==================== الإضاءة والسماء ====================
+function setupLighting(env) {
+  // إزالة الإضاءة القديمة
+  Game.scene.children.filter(c => c.isLight).forEach(l => Game.scene.remove(l));
+  
+  const colors = {
+    pyramids: { sky: 0xffcc99, sun: 0xffaa55, ambient: 0xffd4a3, fog: 0xd4a373 },
+    luxor: { sky: 0xffe4b5, sun: 0xffcc88, ambient: 0xffe0b2, fog: 0xd4a373 },
+    colosseum: { sky: 0x87ceeb, sun: 0xffffff, ambient: 0xb0c4de, fog: 0xa0a0a0 },
+    wall: { sky: 0x98d8e8, sun: 0xffffee, ambient: 0xc5d9e0, fog: 0xb0c4d4 }
+  };
+  const c = colors[env];
+  
+  Game.scene.background = new THREE.Color(c.sky);
+  Game.scene.fog.color.set(c.fog);
+  
+  const ambient = new THREE.AmbientLight(c.ambient, 0.6);
+  Game.scene.add(ambient);
+  
+  const sun = new THREE.DirectionalLight(c.sun, 1.2);
+  sun.position.set(100, 200, 100);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 500;
+  sun.shadow.camera.left = -100;
+  sun.shadow.camera.right = 100;
+  sun.shadow.camera.top = 100;
+  sun.shadow.camera.bottom = -100;
+  Game.scene.add(sun);
+  Game.sunLight = sun;
+  
+  const hemi = new THREE.HemisphereLight(c.sky, 0x8b5a2b, 0.4);
+  Game.scene.add(hemi);
+}
+
+// ==================== بناء البيئات ====================
+function buildEnvironment(envName) {
+  // تنظيف البيئة القديمة
+  if (Game.environment) {
+    Game.environment.forEach(obj => Game.scene.remove(obj));
+  }
+  Game.environment = [];
+  
+  const addToEnv = (obj) => { Game.scene.add(obj); Game.environment.push(obj); };
+  
+  // الأرضية
+  const groundColors = {
+    pyramids: 0xd4a373, luxor: 0xc9a66b, colosseum: 0x8b7355, wall: 0x6b8e4e
+  };
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(2000, 2000),
+    new THREE.MeshStandardMaterial({ color: groundColors[envName], roughness: 0.9 })
+  );
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  addToEnv(ground);
+  
+  // الطريق
+  buildTrack(envName, addToEnv);
+  
+  // البيئة الخاصة
+  if (envName === 'pyramids') buildPyramids(addToEnv);
+  else if (envName === 'luxor') buildLuxor(addToEnv);
+  else if (envName === 'colosseum') buildColosseum(addToEnv);
+  else if (envName === 'wall') buildGreatWall(addToEnv);
+  
+  // أشجار النخيل للصحراء
+  if (envName === 'pyramids' || envName === 'luxor') {
+    for (let i = 0; i < 30; i++) {
+      const palm = createPalmTree();
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 80 + Math.random() * 200;
+      palm.position.set(Math.cos(angle)*dist, 0, Math.sin(angle)*dist);
+      palm.scale.setScalar(0.8 + Math.random() * 0.5);
+      addToEnv(palm);
+    }
+  }
+}
+
+function buildTrack(envName, addToEnv) {
+  // مسار دائري للسباق
+  const trackRadius = 150;
+  const trackWidth = 15;
+  
+  // حلقة الطريق
+  const trackShape = new THREE.Shape();
+  trackShape.absarc(0, 0, trackRadius + trackWidth, 0, Math.PI*2, false);
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, trackRadius - trackWidth, 0, Math.PI*2, true);
+  trackShape.holes.push(hole);
+  
+  const trackGeo = new THREE.ShapeGeometry(trackShape, 64);
+  const trackMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8 });
+  const track = new THREE.Mesh(trackGeo, trackMat);
+  track.rotation.x = -Math.PI/2;
+  track.position.y = 0.05;
+  track.receiveShadow = true;
+  addToEnv(track);
+  
+  // خطوط الطريق
+  for (let i = 0; i < 60; i++) {
+    const angle = (i/60) * Math.PI * 2;
+    const line = new THREE.Mesh(
+      new THREE.PlaneGeometry(3, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    line.rotation.x = -Math.PI/2;
+    line.rotation.z = -angle;
+    line.position.set(Math.cos(angle)*trackRadius, 0.06, Math.sin(angle)*trackRadius);
+    addToEnv(line);
+  }
+  
+  // حواف الطريق
+  for (let side of [-1, 1]) {
+    const curve = new THREE.EllipseCurve(0, 0, trackRadius + side*trackWidth, trackRadius + side*trackWidth, 0, Math.PI*2);
+    const points = curve.getPoints(100);
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const border = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
+    border.rotation.x = -Math.PI/2;
+    border.position.y = 0.07;
+    addToEnv(border);
+  }
+  
+  // خط البداية
+  const startLine = new THREE.Mesh(
+    new THREE.PlaneGeometry(trackWidth*2, 2),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  startLine.rotation.x = -Math.PI/2;
+  startLine.position.set(trackRadius, 0.07, 0);
+  addToEnv(startLine);
+  
+  // حفظ بيانات المسار
+  Game.track = { radius: trackRadius, width: trackWidth };
+}
+
+function buildPyramids(addToEnv) {
+  // الهرم الأكبر
+  const pyramid = createPyramid(40, 30, 0xc9a66b);
+  pyramid.position.set(-80, 0, -100);
+  addToEnv(pyramid);
+  
+  // هرم خفرع
+  const p2 = createPyramid(35, 26, 0xb8956a);
+  p2.position.set(-30, 0, -120);
+  addToEnv(p2);
+  
+  // هرم منقرع
+  const p3 = createPyramid(20, 15, 0xa88555);
+  p3.position.set(10, 0, -110);
+  addToEnv(p3);
+  
+  // أبو الهول
+  const sphinx = createSphinx();
+  sphinx.position.set(50, 0, -60);
+  sphinx.rotation.y = -Math.PI/4;
+  addToEnv(sphinx);
+}
+
+function createPyramid(base, height, color) {
+  const geo = new THREE.ConeGeometry(base, height, 4);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true });
+  const pyramid = new THREE.Mesh(geo, mat);
+  pyramid.rotation.y = Math.PI/4;
+  pyramid.position.y = height/2;
+  pyramid.castShadow = true;
+  pyramid.receiveShadow = true;
+  return pyramid;
+}
+
+function createSphinx() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xc9a66b, roughness: 0.9 });
+  
+  // الجسم
+  const body = new THREE.Mesh(new THREE.BoxGeometry(15, 6, 8), mat);
+  body.position.y = 3;
+  body.castShadow = true;
+  group.add(body);
+  
+  // الرأس
+  const head = new THREE.Mesh(new THREE.BoxGeometry(5, 7, 5), mat);
+  head.position.set(6, 8, 0);
+  head.castShadow = true;
+  group.add(head);
+  
+  // التاج
+  const crown = new THREE.Mesh(new THREE.ConeGeometry(3, 4, 4), mat);
+  crown.position.set(6, 13, 0);
+  crown.rotation.y = Math.PI/4;
+  group.add(crown);
+  
+  return group;
+}
+
+function buildLuxor(addToEnv) {
+  // معبد الكرنك - أعمدة ضخمة
+  for (let i = 0; i < 12; i++) {
+    const column = createColumn(2, 25);
+    const angle = (i/12) * Math.PI * 2;
+    column.position.set(Math.cos(angle)*100 - 50, 0, Math.sin(angle)*100 - 80);
+    addToEnv(column);
+  }
+  
+  // مسلة
+  const obelisk = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 30, 2),
+    new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.7 })
+  );
+  obelisk.position.set(80, 15, -50);
+  obelisk.castShadow = true;
+  addToEnv(obelisk);
+  
+  // قمة المسلة
+  const tip = new THREE.Mesh(
+    new THREE.ConeGeometry(1.5, 3, 4),
+    new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8 })
+  );
+  tip.position.set(80, 31, -50);
+  addToEnv(tip);
+}
+
+function createColumn(radius, height) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.8 });
+  
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius*1.1, height, 16), mat);
+  shaft.position.y = height/2;
+  shaft.castShadow = true;
+  group.add(shaft);
+  
+  const capital = new THREE.Mesh(new THREE.CylinderGeometry(radius*1.5, radius, 2, 16), mat);
+  capital.position.y = height + 1;
+  group.add(capital);
+  
+  return group;
+}
+
+function buildColosseum(addToEnv) {
+  // الكولوسيوم - هيكل دائري
+  const segments = 24;
+  const radius = 80;
+  const height = 30;
+  
+  for (let i = 0; i < segments; i++) {
+    const angle = (i/segments) * Math.PI * 2;
+    const arch = createArch();
+    arch.position.set(Math.cos(angle)*radius - 60, 0, Math.sin(angle)*radius - 100);
+    arch.rotation.y = -angle + Math.PI/2;
+    addToEnv(arch);
+  }
+  
+  // الجدران الخارجية
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, height, 32, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xb8956a, roughness: 0.9, side: THREE.DoubleSide })
+  );
+  wall.position.set(-60, height/2, -100);
+  wall.castShadow = true;
+  addToEnv(wall);
+}
+
+function createArch() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xa88555, roughness: 0.9 });
+  
+  // عمودين
+  const col1 = new THREE.Mesh(new THREE.BoxGeometry(2, 15, 2), mat);
+  col1.position.set(-3, 7.5, 0);
+  col1.castShadow = true;
+  group.add(col1);
+  
+  const col2 = new THREE.Mesh(new THREE.BoxGeometry(2, 15, 2), mat);
+  col2.position.set(3, 7.5, 0);
+  col2.castShadow = true;
+  group.add(col2);
+  
+  // القوس
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(3, 1, 8, 16, Math.PI), mat);
+  arch.position.set(0, 15, 0);
+  arch.rotation.z = Math.PI;
+  group.add(arch);
+  
+  return group;
+}
+
+function buildGreatWall(addToEnv) {
+  // سور الصين يمتد على التلال
+  for (let i = 0; i < 20; i++) {
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(8, 6, 3),
+      new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.9 })
+    );
+    const x = -100 + i * 15;
+    const y = 3 + Math.sin(i * 0.5) * 2;
+    const z = -80 + Math.cos(i * 0.3) * 20;
+    wall.position.set(x, y, z);
+    wall.castShadow = true;
+    Game.scene.add(wall);
+    Game.environment.push(wall);
+  }
+  
+  // أبراج المراقبة
+  for (let i = 0; i < 5; i++) {
+    const tower = new THREE.Mesh(
+      new THREE.BoxGeometry(6, 12, 6),
+      new THREE.MeshStandardMaterial({ color: 0x6b5335, roughness: 0.9 })
+    );
+    tower.position.set(-100 + i * 60, 6, -80);
+    tower.castShadow = true;
+    Game.scene.add(tower);
+    Game.environment.push(tower);
+    
+    // السقف
+    const roof = new THREE.Mesh(
+      new THREE.ConeGeometry(5, 3, 4),
+      new THREE.MeshStandardMaterial({ color: 0x8b0000 })
+    );
+    roof.position.set(-100 + i * 60, 13, -80);
+    roof.rotation.y = Math.PI/4;
+    Game.scene.add(roof);
+    Game.environment.push(roof);
+  }
+  
+  // جبال في الخلفية
+  for (let i = 0; i < 10; i++) {
+    const mountain = new THREE.Mesh(
+      new THREE.ConeGeometry(30 + Math.random()*20, 40 + Math.random()*30, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4a5d3a, flatShading: true })
+    );
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 200 + Math.random() * 150;
+    mountain.position.set(Math.cos(angle)*dist, 20, Math.sin(angle)*dist);
+    Game.scene.add(mountain);
+    Game.environment.push(mountain);
+  }
+}
+
+function createPalmTree() {
+  const group = new THREE.Group();
+  
+  // الجذع
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.5, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x6b4423 })
+  );
+  trunk.position.y = 4;
+  trunk.castShadow = true;
+  group.add(trunk);
+  
+  // الأوراق
+  for (let i = 0; i < 7; i++) {
+    const leaf = new THREE.Mesh(
+      new THREE.ConeGeometry(0.5, 4, 4),
+      new THREE.MeshStandardMaterial({ color: 0x2d5016 })
+    );
+    leaf.position.y = 8;
+    leaf.rotation.z = Math.PI/3;
+    leaf.rotation.y = (i/7) * Math.PI * 2;
+    group.add(leaf);
+  }
+  
+  return group;
+}
+
+// ==================== الدراجة النارية ====================
+function createMotorcycle(color = 0xe63946) {
+  const bike = new THREE.Group();
+  
+  // العجلات
+  const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+  
+  const frontWheel = new THREE.Mesh(wheelGeo, wheelMat);
+  frontWheel.rotation.z = Math.PI/2;
+  frontWheel.position.set(0, 0.5, 1.2);
+  bike.add(frontWheel);
+  
+  const rearWheel = new THREE.Mesh(wheelGeo, wheelMat);
+  rearWheel.rotation.z = Math.PI/2;
+  rearWheel.position.set(0, 0.5, -1.2);
+  bike.add(rearWheel);
+  
+  // هيكل الدراجة
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 0.5, 2.2),
+    new THREE.MeshStandardMaterial({ color, metalness: 0.6, roughness: 0.3 })
+  );
+  body.position.y = 0.9;
+  body.castShadow = true;
+  bike.add(body);
+  
+  // المقعد
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.2, 1),
+    new THREE.MeshStandardMaterial({ color: 0x222222 })
+  );
+  seat.position.set(0, 1.2, -0.3);
+  bike.add(seat);
+  
+  // المقود
+  const handlebar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8 })
+  );
+  handlebar.rotation.z = Math.PI/2;
+  handlebar.position.set(0, 1.3, 1);
+  bike.add(handlebar);
+  
+  // السائق
+  const rider = new THREE.Group();
+  
+  // الجسم
+  const riderBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.25, 0.3, 0.8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x222222 })
+  );
+  riderBody.position.y = 1.7;
+  rider.add(riderBody);
+  
+  // الرأس
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 16, 16),
+    new THREE.MeshStandardMaterial({ color: 0x111111 })
+  );
+  head.position.set(0, 2.2, 0.1);
+  rider.add(head);
+  
+  // الذراعان
+  const arm1 = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.07, 0.6, 8),
+    new THREE.MeshStandardMaterial({ color: 0x222222 })
+  );
+  arm1.position.set(0.3, 1.8, 0.5);
+  arm1.rotation.x = -Math.PI/3;
+  rider.add(arm1);
+  
+  const arm2 = arm1.clone();
+  arm2.position.x = -0.3;
+  rider.add(arm2);
+  
+  bike.add(rider);
+  
+  // العادم
+  const exhaust = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.08, 0.6, 8),
+    new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9 })
+  );
+  exhaust.rotation.x = Math.PI/2;
+  exhaust.position.set(0.3, 0.7, -1.5);
+  bike.add(exhaust);
+  
+  // حفظ المراجع
+  bike.userData = {
+    frontWheel, rearWheel, body,
+    speed: 0, maxSpeed: 80, acceleration: 25, brakeForce: 40,
+    leanAngle: 0, steerAngle: 0,
+    nitro: 100, nitroActive: false,
+    angle: 0, // زاوية الاتجاه على المسار
+    trackPosition: 0, // الموقع على المسار (بالراديان)
+    lap: 1, lastCheckpoint: 0,
+    color
+  };
+  
+  return bike;
+}
+
+// ==================== الفيزياء والتحكم ====================
+function updatePhysics(dt) {
+  if (!Game.player) return;
+  const p = Game.player.userData;
+  
+  // المدخلات
+  const gas = Game.keys['ArrowUp'] || Game.keys['KeyW'] || Game.touch.gas;
+  const brake = Game.keys['ArrowDown'] || Game.keys['KeyS'] || Game.touch.brake;
+  const left = Game.keys['ArrowLeft'] || Game.keys['KeyA'] || Game.touch.left;
+  const right = Game.keys['ArrowRight'] || Game.keys['KeyD'] || Game.touch.right;
+  const nitroKey = Game.keys['Space'] || Game.touch.nitro;
+  
+  // التسارع والفرملة
+  if (gas) p.speed += p.acceleration * dt;
+  else if (brake) p.speed -= p.brakeForce * dt;
+  else p.speed -= p.speed * 0.5 * dt; // احتكاك
+  
+  // النيترو
+  if (nitroKey && p.nitro > 0) {
+    p.nitroActive = true;
+    p.speed += 40 * dt;
+    p.nitro -= 20 * dt;
+  } else {
+    p.nitroActive = false;
+    if (p.nitro < 100) p.nitro += 5 * dt;
+  }
+  p.nitro = Math.max(0, Math.min(100, p.nitro));
+  
+  p.speed = Math.max(0, Math.min(p.maxSpeed, p.speed));
+  
+  // التوجيه
+  const steerSpeed = 2;
+  if (left) p.steerAngle = Math.max(p.steerAngle - steerSpeed * dt, -1);
+  else if (right) p.steerAngle = Math.min(p.steerAngle + steerSpeed * dt, 1);
+  else p.steerAngle *= 0.9;
+  
+  // الميلان - يعتمد على التوجيه والسرعة
+  const targetLean = -p.steerAngle * 45 * (p.speed / p.maxSpeed);
+  p.leanAngle += (targetLean - p.leanAngle) * 5 * dt;
+  
+  // تحديث الموقع على المسار الدائري
+  const trackR = Game.track.radius;
+  const angularSpeed = p.speed / trackR;
+  p.trackPosition += angularSpeed * dt + p.steerAngle * 0.3 * dt;
+  
+  // الانحراف الجانبي عن المسار
+  const lateralOffset = p.steerAngle * 8;
+  const currentR = trackR + lateralOffset;
+  const clampedR = Math.max(trackR - Game.track.width + 2, Math.min(trackR + Game.track.width - 2, currentR));
+  
+  // تحديث موقع الدراجة
+  const x = Math.cos(p.trackPosition) * clampedR;
+  const z = Math.sin(p.trackPosition) * clampedR;
+  Game.player.position.set(x, 0, z);
+  
+  // توجيه الدراجة (نحو اتجاه الحركة)
+  const heading = p.trackPosition + Math.PI/2;
+  Game.player.rotation.y = heading;
+  
+  // تطبيق الميلان
+  Game.player.rotation.z = p.leanAngle * Math.PI / 180;
+  
+  // دوران العجلات
+  const wheelRot = p.speed * dt * 2;
+  p.frontWheel.rotation.x += wheelRot;
+  p.rearWheel.rotation.x += wheelRot;
+  
+  // حساب اللفات
+  const currentLapPos = p.trackPosition % (Math.PI * 2);
+  if (p.lastCheckpoint > Math.PI * 1.5 && currentLapPos < Math.PI * 0.5) {
+    p.lap++;
+    if (p.lap > Game.totalLaps) {
+      showNotification('🏆 أنهيت السباق!');
+      Game.player.userData.speed = 0;
+    } else {
+      showNotification(`🏁 اللفة ${p.lap}/${Game.totalLaps}`);
+    }
+  }
+  p.lastCheckpoint = currentLapPos;
+  
+  // تحديث الكاميرا
+  updateCamera(dt);
+  
+  // تحديث HUD
+  updateHUD();
+}
+
+// ==================== الذكاء الاصطناعي ====================
+function updateAI(dt) {
+  Game.aiRacers.forEach(ai => {
+    const p = ai.userData;
+    
+    // سرعة متغيرة مع تسارع عشوائي
+    const targetSpeed = 50 + Math.sin(Date.now() * 0.001 + ai.id) * 15;
+    p.speed += (targetSpeed - p.speed) * dt;
+    
+    // انحراف جانبي طبيعي
+    const lateralOffset = Math.sin(Date.now() * 0.0005 + ai.id * 2) * 5;
+    const currentR = Game.track.radius + lateralOffset;
+    
+    // حركة على المسار
+    const angularSpeed = p.speed / Game.track.radius;
+    p.trackPosition += angularSpeed * dt;
+    
+    const x = Math.cos(p.trackPosition) * currentR;
+    const z = Math.sin(p.trackPosition) * currentR;
+    ai.position.set(x, 0, z);
+    
+    const heading = p.trackPosition + Math.PI/2;
+    ai.rotation.y = heading;
+    
+    // ميلان في المنعطفات
+    const targetLean = Math.sin(p.trackPosition) * 15;
+    p.leanAngle += (targetLean - p.leanAngle) * 3 * dt;
+    ai.rotation.z = p.leanAngle * Math.PI / 180;
+    
+    // دوران العجلات
+    p.frontWheel.rotation.x += p.speed * dt * 2;
+    p.rearWheel.rotation.x += p.speed * dt * 2;
+  });
+}
+
+// ==================== الكاميرا ====================
+function updateCamera(dt) {
+  if (!Game.player) return;
+  
+  const p = Game.player.position;
+  const heading = Game.player.rotation.y;
+  
+  if (Game.cameraMode === 'third') {
+    // كاميرا خلف الدراجة
+    const dist = 8;
+    const height = 4;
+    const camX = p.x - Math.cos(heading) * dist;
+    const camZ = p.z - Math.sin(heading) * dist;
+    
+    Game.camera.position.lerp(new THREE.Vector3(camX, height, camZ), 5 * dt);
+    const lookAt = new THREE.Vector3(p.x, 1.5, p.z);
+    Game.camera.lookAt(lookAt);
+  } else {
+    // كاميرا الشخص الأول
+    const camX = p.x + Math.cos(heading) * 0.5;
+    const camZ = p.z + Math.sin(heading) * 0.5;
+    Game.camera.position.set(camX, 2.3, camZ);
+    Game.camera.rotation.y = heading;
+    Game.camera.rotation.x = -0.1;
+  }
+}
+
+// ==================== HUD ====================
+function updateHUD() {
+  if (!Game.player) return;
+  const p = Game.player.userData;
+  
+  document.getElementById('speedVal').textContent = Math.floor(p.speed * 3.6);
+  document.getElementById('nitroFill').style.width = p.nitro + '%';
+  document.getElementById('lap').textContent = `${Math.min(p.lap, Game.totalLaps)}/${Game.totalLaps}`;
+  
+  // حساب المركز
+  const playerPos = p.trackPosition + p.lap * Math.PI * 2;
+  let rank = 1;
+  Game.aiRacers.forEach(ai => {
+    const aiPos = ai.userData.trackPosition + ai.userData.lap * Math.PI * 2;
+    if (aiPos > playerPos) rank++;
+  });
+  document.getElementById('position').textContent = `${rank}/${Game.aiRacers.length + 1}`;
+  
+  // الوقت
+  if (Game.state === 'playing') {
+    Game.raceTime += Game.clock.getDelta();
+    const mins = Math.floor(Game.raceTime / 60);
+    const secs = Math.floor(Game.raceTime % 60);
+    document.getElementById('time').textContent = 
+      `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  }
+}
+
+// ==================== الإشعارات ====================
+function showNotification(text) {
+  const n = document.getElementById('notification');
+  n.textContent = text;
+  n.style.opacity = '1';
+  setTimeout(() => n.style.opacity = '0', 2000);
+}
+
+// ==================== التحكم ====================
+function setupControls() {
+  // لوحة المفاتيح
+  window.addEventListener('keydown', e => {
+    Game.keys[e.code] = true;
+    if (e.code === 'KeyC') toggleCamera();
+    if (e.code === 'Escape') togglePause();
+  });
+  window.addEventListener('keyup', e => Game.keys[e.code] = false);
+  
+  // التحكم باللمس
+  if (Game.isMobile) {
+    document.getElementById('mobileControls').style.display = 'block';
+    const bindTouch = (id, key) => {
+      const btn = document.getElementById(id);
+      btn.addEventListener('touchstart', e => { e.preventDefault(); Game.touch[key] = true; btn.classList.add('active'); });
+      btn.addEventListener('touchend', e => { e.preventDefault(); Game.touch[key] = false; btn.classList.remove('active'); });
+      btn.addEventListener('touchcancel', e => { Game.touch[key] = false; btn.classList.remove('active'); });
+    };
+    bindTouch('btnLeft', 'left');
+    bindTouch('btnRight', 'right');
+    bindTouch('btnGas', 'gas');
+    bindTouch('btnBrake', 'brake');
+    bindTouch('btnNitro', 'nitro');
+    
+    document.getElementById('btnCamera').addEventListener('click', toggleCamera);
+    document.getElementById('btnPause').addEventListener('click', togglePause);
+  }
+}
+
+function toggleCamera() {
+  Game.cameraMode = Game.cameraMode === 'third' ? 'first' : 'third';
+  showNotification(Game.cameraMode === 'third' ? '📷 كاميرا خارجية' : '👁️ كاميرا داخلية');
+}
+
+function togglePause() {
+  if (Game.state === 'playing') {
+    Game.state = 'paused';
+    document.getElementById('pauseMenu').style.display = 'flex';
+  } else if (Game.state === 'paused') {
+    Game.state = 'playing';
+    document.getElementById('pauseMenu').style.display = 'none';
+    Game.clock.getDelta(); // إعادة ضبط
+  }
+}
+
+// ==================== حلقة اللعبة ====================
+function animate() {
+  requestAnimationFrame(animate);
+  
+  const dt = Math.min(Game.clock.getDelta(), 0.1);
+  
+  if (Game.state === 'playing') {
+    updatePhysics(dt);
+    updateAI(dt);
+  }
+  
+  Game.renderer.render(Game.scene, Game.camera);
+}
+
+// ==================== بدء اللعبة ====================
+function startGame(mode) {
+  Game.gameMode = mode;
+  Game.totalLaps = mode === 'race' ? 3 : 999;
+  Game.raceTime = 0;
+  
+  // بناء البيئة
+  buildEnvironment(Game.selectedEnv);
+  setupLighting(Game.selectedEnv);
+  
+  // إنشاء اللاعب
+  Game.player = createMotorcycle(0xe63946);
+  Game.player.userData.trackPosition = 0;
+  Game.player.userData.lap = 1;
+  Game.scene.add(Game.player);
+  
+  // إنشاء منافسين
+  Game.aiRacers = [];
+  const aiColors = [0x1e88e5, 0x43a047, 0xfdd835];
+  for (let i = 0; i < 3; i++) {
+    const ai = createMotorcycle(aiColors[i]);
+    ai.userData.trackPosition = -((i+1) * 0.3);
+    ai.userData.lap = 1;
+    ai.userData.speed = 0;
+    ai.id = i;
+    Game.scene.add(ai);
+    Game.aiRacers.push(ai);
+  }
+  
+  // إظهار HUD
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('nitroBar').style.display = 'block';
+  document.getElementById('speedometer').style.display = 'flex';
+  if (Game.isMobile) document.getElementById('mobileControls').style.display = 'block';
+  
+  Game.state = 'playing';
+  Game.clock.getDelta();
+  
+  showNotification('🏁 انطلق!');
+}
+
+function returnToMenu() {
+  // تنظيف
+  if (Game.player) Game.scene.remove(Game.player);
+  Game.aiRacers.forEach(ai => Game.scene.remove(ai));
+  Game.aiRacers = [];
+  if (Game.environment) Game.environment.forEach(obj => Game.scene.remove(obj));
+  Game.environment = [];
+  Game.player = null;
+  
+  document.getElementById('menu').style.display = 'flex';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('nitroBar').style.display = 'none';
+  document.getElementById('speedometer').style.display = 'none';
+  document.getElementById('mobileControls').style.display = 'none';
+  document.getElementById('pauseMenu').style.display = 'none';
+  
+  Game.state = 'menu';
+}
+
+// ==================== التهيئة ====================
+function init() {
+  initScene();
+  setupControls();
+  
+  // تحميل تدريجي
+  let progress = 0;
+  const loadInterval = setInterval(() => {
+    progress += 10;
+    document.getElementById('loadFill').style.width = progress + '%';
+    document.getElementById('loadText').textContent = 
+      progress < 30 ? 'جاري تحميل المحرك...' :
+      progress < 60 ? 'جاري بناء البيئات...' :
+      progress < 90 ? 'جاري تجهيز الدراجات...' : 'جاهز!';
+    
+    if (progress >= 100) {
+      clearInterval(loadInterval);
+      setTimeout(() => {
+        document.getElementById('loading').style.opacity = '0';
+        setTimeout(() => {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('menu').style.display = 'flex';
+          Game.state = 'menu';
+        }, 1000);
+      }, 500);
+    }
+  }, 100);
+  
+  // أحداث القائمة
+  document.querySelectorAll('.env-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      Game.selectedEnv = btn.dataset.env;
+    });
+  });
+  
+  document.getElementById('startRace').addEventListener('click', () => startGame('race'));
+  document.getElementById('freeRide').addEventListener('click', () => startGame('free'));
+  document.getElementById('resumeBtn').addEventListener('click', togglePause);
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    returnToMenu();
+    setTimeout(() => startGame(Game.gameMode), 100);
+  });
+  document.getElementById('menuBtn').addEventListener('click', returnToMenu);
+  
+  animate();
+}
+
+init();
+</script>
+</body>
+                                           </html>
